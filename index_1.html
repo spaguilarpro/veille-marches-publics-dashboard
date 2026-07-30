@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veille marchés publics — Tableau de bord</title>
+<style>
+  :root {
+    --noir: #0A0A0A;
+    --creme: #F4F1EB;
+    --terracotta: #C96442;
+    --bleu: oklch(72% 0.1 250);
+    --vert: oklch(72% 0.13 145);
+    --rouge: oklch(68% 0.16 25);
+    --alerte: oklch(82% 0.15 95);
+    --surface: #151515;
+  }
+  * , *::before, *::after { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body {
+    margin: 0;
+    background: var(--noir);
+    color: var(--creme);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  a { color: var(--terracotta); }
+  a:hover { color: #e08a68; }
+
+  .page {
+    min-height: 100vh;
+    padding: clamp(20px, 4vw, 48px) clamp(16px, 5vw, 64px) 80px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(244,241,235,0.15);
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    opacity: 0.5;
+    margin-bottom: 10px;
+  }
+  .title {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 0.98;
+    margin: 0;
+  }
+  .subtitle {
+    font-size: 14px;
+    opacity: 0.55;
+    margin-top: 10px;
+  }
+  .btn-library {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--terracotta);
+    color: var(--creme);
+    text-decoration: none;
+    padding: 12px 22px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .btn-library:hover { background: #b1552f; color: var(--creme); }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .filter-pill {
+    background: transparent;
+    color: var(--creme);
+    opacity: 0.65;
+    border: 1px solid rgba(244,241,235,0.2);
+    padding: 9px 18px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .filter-pill.active {
+    background: var(--creme);
+    color: var(--noir);
+    opacity: 1;
+    border-color: var(--creme);
+  }
+
+  /* List & cards */
+  .market-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .market-card {
+    background: var(--surface);
+    border: 1px solid rgba(244,241,235,0.14);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: opacity 0.15s ease, border-color 0.15s ease;
+  }
+  .market-card[data-status="Non pertinent"] { opacity: 0.55; }
+  .market-card.is-urgent { border-color: var(--alerte); }
+  .market-card.is-hidden { display: none; }
+
+  .card-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 22px;
+    padding: 18px 22px;
+    cursor: pointer;
+    list-style: revert;
+  }
+  .card-summary::-webkit-details-marker { color: var(--creme); }
+
+  .status-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 150px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .status-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    opacity: 0.75;
+  }
+
+  .card-main { flex: 1 1 260px; min-width: 220px; }
+  .card-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .card-buyer { font-size: 13px; opacity: 0.55; margin-top: 2px; }
+
+  .card-source {
+    min-width: 110px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    opacity: 0.4;
+  }
+
+  .card-deadline { min-width: 130px; text-align: right; }
+  .deadline-date { font-size: 14px; font-weight: 600; }
+  .deadline-days { font-size: 12px; opacity: 0.55; margin-top: 2px; }
+  .deadline-urgent {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--alerte);
+    margin-top: 4px;
+    display: none;
+  }
+  .market-card.is-urgent .deadline-urgent { display: block; }
+
+  .card-body {
+    padding: 4px 22px 24px;
+    border-top: 1px solid rgba(244,241,235,0.12);
+  }
+  .card-description {
+    font-size: 15px;
+    line-height: 1.5;
+    opacity: 0.8;
+    margin: 18px 0 20px;
+    max-width: 760px;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 18px 28px;
+    margin-bottom: 20px;
+  }
+  .info-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    opacity: 0.4;
+    margin-bottom: 6px;
+  }
+  .info-value { font-size: 15px; }
+  .info-value.strong { font-weight: 600; }
+  .info-value.body { line-height: 1.5; opacity: 0.8; }
+
+  .reason-box {
+    background: rgba(244,241,235,0.06);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+  }
+  .reason-box .info-label { margin-bottom: 6px; }
+  .reason-box .info-value { font-size: 14px; line-height: 1.5; opacity: 0.8; }
+
+  .card-links, .card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .card-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(244,241,235,0.08);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    padding: 10px 18px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: none;
+    color: inherit;
+  }
+  .btn-link {
+    border-color: var(--terracotta);
+    color: var(--terracotta);
+  }
+  .btn-link:hover { background: var(--terracotta); color: var(--creme); }
+
+  .btn-dossier {
+    border-color: rgba(244,241,235,0.25);
+    color: var(--creme);
+  }
+  .btn-dossier:hover { border-color: var(--creme); }
+
+  .btn-disabled {
+    border-color: rgba(244,241,235,0.12);
+    color: var(--creme);
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-warn {
+    border-color: rgba(244,241,235,0.25);
+    color: var(--creme);
+    opacity: 0.75;
+    font-size: 12px;
+    padding: 9px 16px;
+  }
+  .btn-warn:hover { opacity: 1; border-color: rgba(244,241,235,0.5); }
+
+  .btn-danger {
+    border-color: oklch(68% 0.16 25 / 0.5);
+    color: oklch(75% 0.14 25);
+    font-size: 12px;
+    padding: 9px 16px;
+  }
+  .btn-danger:hover { background: oklch(68% 0.16 25 / 0.15); }
+
+  .empty-state {
+    padding: 40px 0;
+    text-align: center;
+    opacity: 0.45;
+    font-size: 14px;
+  }
+
+  /* Mobile: cartes empilées en pleine largeur, deadline reste alignée à droite */
+  @media (max-width: 640px) {
+    .header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .filters {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 6px;
+    }
+    .filter-pill { flex: none; }
+    .card-summary {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 16px 18px;
+    }
+    .status-block, .card-main, .card-source, .card-deadline {
+      min-width: 0;
+      width: 100%;
+      flex-grow: 0;
+      flex-shrink: 0;
+      flex-basis: auto;
+      height: auto;
+    }
+    .card-deadline { text-align: right; margin-top: 4px; }
+    .card-source { opacity: 0.45; }
+    .card-body { padding: 4px 18px 20px; }
+    .card-links, .card-actions { gap: 10px; }
+    .btn { padding: 11px 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <div>
+      <div class="eyebrow">Veille — Marchés publics</div>
+      <h1 class="title">Tableau de bord</h1>
+      <div class="subtitle"><span id="market-count">0</span> marchés suivis · mis à jour automatiquement le <span id="today-label"></span></div>
+    </div>
+    <a class="btn-library" href="#" target="_blank" rel="noopener">Bibliothèque de références ↗</a>
+  </header>
+
+  <nav class="filters" id="filters">
+    <button class="filter-pill active" data-filter="Tous">Tous</button>
+    <button class="filter-pill" data-filter="Repéré">Repéré</button>
+    <button class="filter-pill" data-filter="Dossier généré">Dossier généré</button>
+    <button class="filter-pill" data-filter="Envoyée">Envoyée</button>
+    <button class="filter-pill" data-filter="Gagné">Gagné</button>
+    <button class="filter-pill" data-filter="Perdu">Perdu</button>
+    <button class="filter-pill" data-filter="Sans réponse">Sans réponse</button>
+    <button class="filter-pill" data-filter="Non pertinent">Non pertinent</button>
+  </nav>
+
+  <!-- ==========================================================
+       Liste des marchés. Chaque <details class="market-card"> est
+       le bloc répétable à régénérer par le script depuis Notion.
+       Attributs pilotés par script : data-status, data-source,
+       data-deadline (AAAA-MM-JJ), data-has-dossier.
+       ========================================================== -->
+  <div class="market-list" id="market-list">
+
+  </div>
+
+  <div class="empty-state" id="empty-state" style="display:none;">Aucun marché pour ce filtre.</div>
+
+</div>
+
+<script>
+(function () {
+  var STATUS_DOT = {
+    'Repéré':          { bg: 'transparent', border: 'var(--bleu)' },
+    'Dossier généré':  { bg: 'var(--bleu)', border: 'var(--bleu)', opacity: 0.55 },
+    'Envoyée':         { bg: 'var(--bleu)', border: 'var(--bleu)' },
+    'Gagné':           { bg: 'var(--vert)', border: 'var(--vert)' },
+    'Perdu':           { bg: 'var(--rouge)', border: 'var(--rouge)' },
+    'Sans réponse':    { bg: 'transparent', border: 'rgba(244,241,235,0.4)' },
+    'Non pertinent':   { bg: 'rgba(244,241,235,0.3)', border: 'rgba(244,241,235,0.3)' }
+  };
+  var EN_COURS = ['Repéré', 'Dossier généré', 'Envoyée'];
+  var dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  var todayFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  var listEl = document.getElementById('market-list');
+  var emptyEl = document.getElementById('empty-state');
+  var currentFilter = 'Tous';
+
+  function applyStatusStyle(card) {
+    var status = card.getAttribute('data-status');
+    var meta = STATUS_DOT[status] || STATUS_DOT['Repéré'];
+    var dot = card.querySelector('.status-dot');
+    dot.style.background = meta.bg;
+    dot.style.border = '1.5px solid ' + meta.border;
+    dot.style.opacity = meta.opacity != null ? meta.opacity : 1;
+    card.querySelector('.status-label').textContent = status;
+  }
+
+  function refreshDeadline(card) {
+    var deadline = new Date(card.getAttribute('data-deadline') + 'T00:00:00');
+    var now = new Date();
+    var diffDays = Math.round((deadline - now) / 86400000);
+    var status = card.getAttribute('data-status');
+
+    card.querySelector('.deadline-date').textContent = dateFmt.format(deadline);
+    var daysLabel;
+    if (diffDays > 0) daysLabel = 'J-' + diffDays;
+    else if (diffDays === 0) daysLabel = "Aujourd'hui";
+    else daysLabel = 'Clôturé il y a ' + (-diffDays) + ' j';
+    card.querySelector('.deadline-days').textContent = daysLabel;
+
+    var urgent = diffDays >= 0 && diffDays <= 2 && EN_COURS.indexOf(status) !== -1;
+    card.classList.toggle('is-urgent', urgent);
+
+    card._sortKey = Math.abs(deadline - now);
+  }
+
+  function sortCards() {
+    var cards = Array.prototype.slice.call(listEl.querySelectorAll('.market-card'));
+    cards.sort(function (a, b) { return a._sortKey - b._sortKey; });
+    cards.forEach(function (c) { listEl.appendChild(c); });
+  }
+
+  function updateCounts() {
+    var cards = listEl.querySelectorAll('.market-card');
+    document.getElementById('market-count').textContent = cards.length;
+    var counts = { 'Tous': cards.length };
+    cards.forEach(function (c) {
+      var s = c.getAttribute('data-status');
+      counts[s] = (counts[s] || 0) + 1;
+    });
+    document.querySelectorAll('.filter-pill').forEach(function (btn) {
+      var f = btn.getAttribute('data-filter');
+      var base = f === 'Tous' ? 'Tous' : f;
+      btn.textContent = base + ' (' + (counts[f] || 0) + ')';
+    });
+  }
+
+  function applyFilter() {
+    var cards = listEl.querySelectorAll('.market-card');
+    var visibleCount = 0;
+    cards.forEach(function (c) {
+      var match = currentFilter === 'Tous' || c.getAttribute('data-status') === currentFilter;
+      c.classList.toggle('is-hidden', !match);
+      if (match) visibleCount++;
+    });
+    emptyEl.style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+
+  function initCard(card) {
+    applyStatusStyle(card);
+    refreshDeadline(card);
+
+    var markBtn = card.querySelector('[data-action="mark-non-pertinent"]');
+    if (markBtn) {
+      markBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var raison = window.prompt('Raison (courte) pour marquer ce marché "Non pertinent" :');
+        if (raison === null) return;
+        card.setAttribute('data-status', 'Non pertinent');
+        applyStatusStyle(card);
+        refreshDeadline(card);
+
+        var existingReason = card.querySelector('.reason-box[data-reason="non-pertinent"]');
+        if (!existingReason) {
+          var box = document.createElement('div');
+          box.className = 'reason-box';
+          box.setAttribute('data-reason', 'non-pertinent');
+          box.innerHTML = '<div class="info-label">Raison (non pertinent)</div><div class="info-value"></div>';
+          card.querySelector('.card-links').before(box);
+          existingReason = box;
+        }
+        existingReason.querySelector('.info-value').textContent = raison || 'Non précisée';
+        markBtn.remove();
+        updateCounts();
+        applyFilter();
+      });
+    }
+
+    var deleteBtn = card.querySelector('[data-action="delete"]');
+    deleteBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var title = card.querySelector('.card-title').textContent;
+      if (!window.confirm('Supprimer définitivement "' + title + '" ? Cette action est irréversible.')) return;
+      card.remove();
+      updateCounts();
+      applyFilter();
+    });
+  }
+
+  document.getElementById('today-label').textContent = todayFmt.format(new Date());
+
+  listEl.querySelectorAll('.market-card').forEach(initCard);
+  sortCards();
+  updateCounts();
+  applyFilter();
+
+  document.getElementById('filters').addEventListener('click', function (e) {
+    var btn = e.target.closest('.filter-pill');
+    if (!btn) return;
+    currentFilter = btn.getAttribute('data-filter');
+    document.querySelectorAll('.filter-pill').forEach(function (b) { b.classList.toggle('active', b === btn); });
+    applyFilter();
+  });
+})();
+</script>
+</body>
+</html>
