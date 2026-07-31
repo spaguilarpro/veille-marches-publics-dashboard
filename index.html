@@ -393,7 +393,7 @@
        ========================================================== -->
   <div class="market-list" id="market-list">
 
-    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-04" data-has-dossier="false" data-dossier-file="">
+    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-04" data-has-dossier="false" data-dossier-file="" data-market-id="market-3ae765ed5a8a81108a57c48e0556847a">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -443,7 +443,7 @@
       </div>
     </details>
 
-    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="" data-has-dossier="false" data-dossier-file="">
+    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="" data-has-dossier="false" data-dossier-file="" data-market-id="market-3ae765ed5a8a8117ba6bf490698e59e0">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -493,7 +493,7 @@
       </div>
     </details>
 
-    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-16" data-has-dossier="false" data-dossier-file="">
+    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-16" data-has-dossier="false" data-dossier-file="" data-market-id="market-3ae765ed5a8a81278f79feb93e2b4a1f">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -543,7 +543,7 @@
       </div>
     </details>
 
-    <details class="market-card" data-status="Dossier généré" data-source="BOAMP" data-deadline="2026-09-03" data-has-dossier="true" data-dossier-file="dossiers/2027-mapa-formations-trajectoires/">
+    <details class="market-card" data-status="Dossier généré" data-source="BOAMP" data-deadline="2026-09-03" data-has-dossier="true" data-dossier-file="dossiers/2027-mapa-formations-trajectoires/" data-market-id="market-3ae765ed5a8a81949adeda24c88d85f8">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -593,7 +593,7 @@
       </div>
     </details>
 
-    <details class="market-card" data-status="Dossier généré" data-source="BOAMP" data-deadline="2026-10-12" data-has-dossier="true" data-dossier-file="dossiers/at38-lr-4lots-2027/">
+    <details class="market-card" data-status="Dossier généré" data-source="BOAMP" data-deadline="2026-10-12" data-has-dossier="true" data-dossier-file="dossiers/at38-lr-4lots-2027/" data-market-id="market-3ae765ed5a8a81bf888fe8eb99419830">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -643,7 +643,7 @@
       </div>
     </details>
 
-    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-23" data-has-dossier="false" data-dossier-file="">
+    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-23" data-has-dossier="false" data-dossier-file="" data-market-id="market-3ae765ed5a8a81f08797d19fc4ca2691">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -693,7 +693,7 @@
       </div>
     </details>
 
-    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-24" data-has-dossier="false" data-dossier-file="">
+    <details class="market-card" data-status="Non pertinent" data-source="BOAMP" data-deadline="2026-09-24" data-has-dossier="false" data-dossier-file="" data-market-id="market-3ae765ed5a8a81f4b82ee63c0d47b49b">
       <summary class="card-summary">
         <div class="status-block">
           <span class="status-dot"></span>
@@ -875,6 +875,9 @@
       e.preventDefault();
       var title = card.querySelector('.card-title').textContent;
       if (!window.confirm('Supprimer définitivement "' + title + '" ? Cette action est irréversible.')) return;
+      var deleted = getDeleted();
+      var id = marketIdFor(card);
+      if (deleted.indexOf(id) === -1) { deleted.push(id); saveDeleted(deleted); }
       card.remove();
       updateCounts();
       applyFilter();
@@ -883,10 +886,31 @@
 
   document.getElementById('today-label').textContent = todayFmt.format(new Date());
 
+  (function removeDeletedCards() {
+    var deleted = getDeleted();
+    if (!deleted.length) return;
+    listEl.querySelectorAll('.market-card').forEach(function (card) {
+      if (deleted.indexOf(marketIdFor(card)) !== -1) card.remove();
+    });
+  })();
+
   listEl.querySelectorAll('.market-card').forEach(initCard);
   sortCards();
   updateCounts();
   applyFilter();
+
+  var DELETED_KEY = 'veille_deleted_markets';
+  function getDeleted() {
+    try { return JSON.parse(localStorage.getItem(DELETED_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveDeleted(arr) { localStorage.setItem(DELETED_KEY, JSON.stringify(arr)); }
+  function marketIdFor(card) {
+    var id = card.getAttribute('data-market-id');
+    if (id) return id;
+    var title = (card.querySelector('.card-title') || {}).textContent || '';
+    var buyer = (card.querySelector('.card-buyer') || {}).textContent || '';
+    return 'market-fallback-' + (title + '|' + buyer).replace(/\s+/g, '_');
+  }
 
   var DISMISS_KEY = 'veille_dismissed_notifs';
   function getDismissed() {
