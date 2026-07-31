@@ -728,11 +728,22 @@
   }
 
   function refreshDeadline(card) {
-    var deadline = new Date(card.getAttribute('data-deadline') + 'T00:00:00');
+    var raw = card.getAttribute('data-deadline');
+    var deadline = raw ? new Date(raw + 'T00:00:00') : null;
+    var valid = deadline && !isNaN(deadline.getTime());
     var now = new Date();
-    var diffDays = Math.round((deadline - now) / 86400000);
     var status = card.getAttribute('data-status');
 
+    if (!valid) {
+      // Pas de deadline exploitable (ex. avis d'attribution / résultat de marché) : ne pas planter, afficher un repli neutre.
+      card.querySelector('.deadline-date').textContent = 'Non communiquée';
+      card.querySelector('.deadline-days').textContent = '';
+      card.classList.remove('is-urgent');
+      card._sortKey = Infinity;
+      return;
+    }
+
+    var diffDays = Math.round((deadline - now) / 86400000);
     card.querySelector('.deadline-date').textContent = dateFmt.format(deadline);
     var daysLabel;
     if (diffDays > 0) daysLabel = 'J-' + diffDays;
