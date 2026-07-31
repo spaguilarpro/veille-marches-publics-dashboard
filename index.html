@@ -286,6 +286,42 @@
     font-size: 14px;
   }
 
+  /* Notifications persistantes */
+  .notif-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .notif-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid rgba(244,241,235,0.14);
+    border-left: 3px solid var(--alerte);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .notif-item[data-notif-type="acheteur"] { border-left-color: var(--bleu); }
+  .notif-text { flex: 1; opacity: 0.9; }
+  .notif-text strong { font-weight: 600; }
+  .notif-dismiss {
+    flex: none;
+    background: none;
+    border: none;
+    color: var(--creme);
+    opacity: 0.45;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+  .notif-dismiss:hover { opacity: 1; }
+
   /* Mobile: cartes empilées en pleine largeur, deadline reste alignée à droite */
   @media (max-width: 640px) {
     .header {
@@ -332,6 +368,10 @@
     </div>
     <a class="btn-library" href="https://app.notion.com/p/c4787f4e963348a9b416451df88d8ffd" target="_blank" rel="noopener">Bibliothèque de références ↗</a>
   </header>
+
+  <div class="notif-panel" id="notif-panel">
+
+  </div>
 
   <nav class="filters" id="filters">
     <button class="filter-pill active" data-filter="Tous">Tous</button>
@@ -847,6 +887,31 @@
   sortCards();
   updateCounts();
   applyFilter();
+
+  var DISMISS_KEY = 'veille_dismissed_notifs';
+  function getDismissed() {
+    try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveDismissed(arr) { localStorage.setItem(DISMISS_KEY, JSON.stringify(arr)); }
+
+  function initNotifs() {
+    var dismissed = getDismissed();
+    var panel = document.getElementById('notif-panel');
+    var items = Array.prototype.slice.call(panel.querySelectorAll('.notif-item'));
+    items.forEach(function (item) {
+      var id = item.getAttribute('data-notif-id');
+      if (id && dismissed.indexOf(id) !== -1) { item.remove(); return; }
+      var btn = item.querySelector('.notif-dismiss');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var d = getDismissed();
+          if (id && d.indexOf(id) === -1) { d.push(id); saveDismissed(d); }
+          item.remove();
+        });
+      }
+    });
+  }
+  initNotifs();
 
   document.getElementById('filters').addEventListener('click', function (e) {
     var btn = e.target.closest('.filter-pill');
