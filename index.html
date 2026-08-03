@@ -1366,12 +1366,25 @@
       e.preventDefault();
       var title = card.querySelector('.card-title').textContent;
       if (!window.confirm('Supprimer définitivement "' + title + '" ? Cette action est irréversible.')) return;
-      var deleted = getDeleted();
       var id = marketIdFor(card);
-      if (deleted.indexOf(id) === -1) { deleted.push(id); saveDeleted(deleted); }
-      card.remove();
-      updateCounts();
-      applyFilter();
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Suppression…';
+      fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-delete-secret': DELETE_SECRET_CLIENT },
+        body: JSON.stringify({ pageId: id })
+      }).then(function (res) {
+        if (!res.ok) throw new Error('delete-failed');
+        var deleted = getDeleted();
+        if (deleted.indexOf(id) === -1) { deleted.push(id); saveDeleted(deleted); }
+        card.remove();
+        updateCounts();
+        applyFilter();
+      }).catch(function () {
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Supprimer';
+        window.alert('La suppression a échoué côté serveur (Notion injoignable ou non configuré). La carte reste affichée pour éviter une incohérence — réessaie dans un instant.');
+      });
     });
   }
 
@@ -1390,6 +1403,7 @@
   updateCounts();
   applyFilter();
 
+  var DELETE_SECRET_CLIENT = '559ba4928b590f3d5ffe161897d5a725056f3c7d95e748a8';
   var DELETED_KEY = 'veille_deleted_markets';
   function getDeleted() {
     try { return JSON.parse(localStorage.getItem(DELETED_KEY) || '[]'); } catch (e) { return []; }
